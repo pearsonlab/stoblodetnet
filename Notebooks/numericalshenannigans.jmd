@@ -1,0 +1,97 @@
+```{julia;fig_height=4;fig_width=5}
+include("/home/seth/code/stoblodetnet/DeterminantalPP.jl")
+using DataFrames, Gadfly
+function cardmom(S::DetNet)
+    λ = eigvals(S.L);
+    p = λ ./ (λ .+ 1.);
+
+    return sum(p), p'*(1 .- p)
+end
+
+nseq = [4, 8, 16, 32];
+ρseq = 0.0:0.02:0.5;
+qseq = .1:.2:.9;
+cardat = DataFrame()
+for n in nseq
+    for q in qseq
+        detsize = [cardmom(DetNet(n, ρ, q))[1]/n for ρ in ρseq];
+        tmp = DataFrame(cardinality=detsize, q=q, ρ=collect(ρseq), n=n);
+        global cardat = vcat(cardat, tmp);
+    end
+end
+
+p1 = plot(cardat, y=:cardinality, x=:ρ, color=:q, ygroup=:n,
+    Geom.subplot_grid(Geom.line, free_y_axis=true))
+```
+Expected cardinality (i.e. number of edges) of DPP samples, divided by number
+of nodes, as a function of node count (from 4 to 32), the strength of repulsion
+ρ, and the quality q.
+Note that ρ has effectively no bite unless it is quite close to 0.5 and the
+expected cardinality per node is > 1, in which case ρ forces the cardinality to
+the number of nodes (1 on the y axis here).
+This occurs because at ρ = 0.5, there are only n non-zero eigenvalues, and beyond
+0.5 we get negative eigenvalues.
+
+```julia
+n = 24;
+qseq = [0.1, 0.5, 0.9];
+degdat = DataFrame()
+areyouthere(edge, node) = edge[1] == node || edge[2] == node;
+nsamp = Int(1e3);
+for q in qseq
+    S = DetNet(n, 0.5, q);
+    q0 = cardmom(S)[1]/binomial(n,2);
+    S0 = DetNet(n, 0.0, q0);
+    Samp = rand(S,nsamp);
+    S0amp = rand(S0,nsamp);
+    tmp = vcat(vec([sum(areyouthere.(s,i)) for s in Samp, i in 1:n]),
+        vec([sum(areyouthere.(s,i)) for s in S0amp, i in 1:n]));
+    global degdat = vcat(degdat, DataFrame(degree=tmp, q=q,
+        ρ = repeat(["repulsive","independent"], inner=n*nsamp)))
+end
+
+p2 = plot(degdat,x=:degree, xgroup=:ρ, ygroup=:q,
+    Geom.subplot_grid(Coord.cartesian(xmin=0,xmax=maximum(degdat[:,:degree])),
+                      Geom.histogram))
+```
+The marginal distribution of degrees for a node under ρ of 0.5 (left) versus 0
+(right), the latter having each edge sampled independently, of networks with
+The independent networks of the right column have had their edge inclusion probabilities
+set to match those of the corresponding networks on the right.
+The primary effect of repulsion seems to be reduce (and at high levels of quality, effectively
+eliminate) the probabity that node will have no connections, and more subtly to
+thin the right tail of nodes with many edges.
+
+```julia
+using LightGraphs, GraphPlot
+function simplegraphify(E, N)
+    G = SimpleGraph(N);
+    for e in E
+        add_edge!(G, e[1], e[2])
+    end
+    return G;
+end
+n=64
+S = DetNet(n, 0.5, 0.99);
+gplot(simplegraphify(rand(S),n))
+```
+```julia
+gplot(simplegraphify(rand(S),n))
+```
+```julia
+gplot(simplegraphify(rand(S),n))
+```
+Above are three samples from a repulsive model with 64 nodes and high quality.
+
+Below are three networks from a model with independent nodes and matching edge probability.
+```julia
+p = cardmom(S)[1]/binomial(n,2);
+S0 = DetNet(n, 0.0, p);
+gplot(simplegraphify(rand(S0),n))
+```
+```julia
+gplot(simplegraphify(rand(S0),n))
+```
+```julia
+gplot(simplegraphify(rand(S0),n))
+```
