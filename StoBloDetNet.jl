@@ -52,7 +52,12 @@ end
 function logpdf(S::StoBloDetNet, x::T,
     normconst = [logdet(B.L+I) for B in S.block]) where {T <: AbstractVector}
 
+    #number of edge types
+    Ke = binomial(S.K+1,2);
+    #get edge type for each element in x
     et = [edgetype(e,S) for e in x];
-    xiter = (x[et .== k] for k in 1:binomial(S.K+1,2));
+    #iterator for pulling out only edges of a given edge-type
+    xiter = (x[et .== k] for k in 1:Ke);
+    #loop over edge-types, evaluate
     return sum(logpdf(B, xk, nc) for (B, xk, nc) in zip(S.block, xiter, normconst));
 end

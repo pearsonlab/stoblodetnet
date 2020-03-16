@@ -188,19 +188,22 @@ function update_ρq(z::Vector{Int},A::Vector{Symmetric{Int,Matrix{Int}}},ρ::Vec
 end
 
 ## Gibbs sampler to update node types z
-function update_z(z::Vector{Int},A::Vector{Symmetric{Int,Matrix{Int}}},ρ::Vector{Float64},q::Vector{Float64},K::Int)
-    # Gibbs
+## note: can be sped up dramatically by storing the loglik of each block and
+## updating only for the changed blocks on each iteration of the sampler
+function update_z!(z::Vector{Int},y::Vector{Tuple{Int,Int}},ρ::Vector{Float64},q::Vector{Float64},K::Int)
+
+    logp_zi = Array{Float64,1}(undef,K);
     for i in 1:length(z)
-        p_zi_new = Array{Float64,1}(undef,K);
         for k = 1:K
             z[i] = k;
-            p_zi_new[k] = postz(z,A,ρ,q,K);
+            Szik = StoBloDetNet(length(z),z,K,ρ,q); #recreate complete L; inefficient (see above)
+            logp_zi[k] = logpdf(Szik,y); #flat prior in z so only likelihood matters for posterior
         end
-        p_zi_new = p_zi_new./sum(p_zi_new);
-        z[i] = wsample(1:K, p_zi_new, 1)[1];
+        logp_zi = logp_zi .- logsumexp(logp_zi); #normalize conditional posterior
+        z[i] = rand(Categorical(exp.(logp_zi)); #sample new k
     end
-    return z
 end
+
 # ## Metropolis sampler to update node types z
 # function update_z(z::Vector{Int},A::Vector{Symmetric{Int,Matrix{Int}}},ρ::Vector{Float64},q::Vector{Float64},K::Int)
 #     # METROPOLIS
@@ -224,26 +227,26 @@ end
 #     end
 #     return z
 # end
+## I don't think you need any of this? All you need is the likelihood
+# function postz(z::Vector{Int},A::Vector{Symmetric{Int,Matrix{Int}}},ρ::Vector{Float64},q::Vector{Float64},K::Int)
+#     # calculate numerator
+#     num = exp(postA(z,A,ρ,q,K))*(1/K);
+#     # calculate denomenator
+#     den = 0;
+#     for k in 1:K
+#         z[k] = k;
+#         # den += exp(sum([posta(z,a,ρ,q,K) for a in A]))*(1/K);
+#         den += exp(postA(z,A,ρ,q,K))/K;
+#     end
+#     return num/den
+# end
 
-function postz(z::Vector{Int},A::Vector{Symmetric{Int,Matrix{Int}}},ρ::Vector{Float64},q::Vector{Float64},K::Int)
-    # calculate numerator
-    num = exp(postA(z,A,ρ,q,K))*(1/K);
-    # calculate denomenator
-    den = 0;
-    for k in 1:K
-        z[k] = k;
-        # den += exp(sum([posta(z,a,ρ,q,K) for a in A]))*(1/K);
-        den += exp(postA(z,A,ρ,q,K))/K;
-    end
-    return num/den
-end
-
-function posta(z::Vector{Int},a::Symmetric{Int,Matrix{Int}},ρ::Vector{Float64},q::Vector{Float64},K::Int)
-    n = size(a,1);
-    S = StoBloDetNet(n,z,K,ρ,q);
-    edge = edge_a(a);
-    pa = logpdf(S,edge);
-end
+# function posta(z::Vector{Int},a::Symmetric{Int,Matrix{Int}},ρ::Vector{Float64},q::Vector{Float64},K::Int)
+#     n = size(a,1);
+#     S = StoBloDetNet(n,z,K,ρ,q);
+#     edge = edge_a(a);
+#     pa = logpdf(S,edge);
+# end
 
 # function posta(z::Vector{Int},a::Symmetric{Int,Matrix{Int}},ρ::Vector{Float64},q::Vector{Float64},K::Int)
 #     # compute log normconst
