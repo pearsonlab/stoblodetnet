@@ -1,7 +1,7 @@
 # module StoBloDetNet
 
-using LinearAlgebra, Combinatorics, NamedArrays, Distributions
-import Base: show, rand, getindex
+using LinearAlgebra, Combinatorics, NamedArrays, Distributions, StatsFuns
+import Base: show, rand, getindex, length
 import LinearAlgebra.eigen
 import Distributions: logpdf, loglikelihood, params
 

@@ -9,12 +9,14 @@ struct StoBloDetNet
     z::Vector{Int}
     block::Vector{DetNet}
     K::Int
+    L::Int
 
     function StoBloDetNet(edge, z, K, ρ, q)
         et = [edgetype(e, z, K) for e in edge];
+        L = binomial(K+1,2);
         block = [DetNet(edge[et .== i], ρ[i], q[i])
-                    for i in 1:binomial(K+1,2)];
-        new(edge,z,block,K)
+                    for i in 1:L];
+        new(edge,z,block,K,L)
     end
 end
 
@@ -30,7 +32,9 @@ StoBloDetNet(n::Int,z,K,ρ::Float64,q::Float64) =
 # get the edge-type of e from e's node-types
 edgetype(e, z, K) = div(z[e[1]],K) + z[e[2]];
 edgetype(e, S::StoBloDetNet) = edgetype(e, S.z, S.K);
-
+edgetype(e::Vector{T}, S::StoBloDetNet) where T = [edgetype(i,S) for i in e];
+edgetype(e::Vector{T},z,K) where T = [edgetype(i,z,K) for i in e];
+edgetype(S::StoBloDetNet) = edgetype(S.edge,S);
 function rand(S::StoBloDetNet, n::Int)
     samp = [Vector{Tuple{Int,Int}}(undef,0) for i in 1:n];
     tmp = [rand(B,n) for B in S.block];
@@ -52,12 +56,10 @@ end
 function logpdf(S::StoBloDetNet, x::T,
     normconst = [logdet(B.L+I) for B in S.block]) where {T <: AbstractVector}
 
-    #number of edge types
-    Ke = binomial(S.K+1,2);
     #get edge type for each element in x
     et = [edgetype(e,S) for e in x];
     #iterator for pulling out only edges of a given edge-type
-    xiter = (x[et .== k] for k in 1:Ke);
+    xiter = (x[et .== k] for k in 1:S.L);
     #loop over edge-types, evaluate
     return sum(logpdf(B, xk, nc) for (B, xk, nc) in zip(S.block, xiter, normconst));
 end
