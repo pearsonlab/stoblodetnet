@@ -16,7 +16,7 @@ struct DetNet
     edge::Vector{Tuple{Int,Int}}
     L::Symmetric{Float64,Matrix{Float64}}
 
-    function DetNet(edge::Vector{Tuple{Int,Int}},ρ::Float64,q::Float64)
+    function DetNet(edge::Vector{Tuple{Int,Int}},ρ::Float64,ω::Float64,q::Float64)
         n = length(edge);
         L = Array{Float64,2}(undef,n,n);
         d = q/(1-q);
@@ -29,7 +29,7 @@ struct DetNet
                 elseif ei[1] ∈ edge[j] || ei[2] ∈ edge[j]
                     L[j, i] = ρ*d;
                 else
-                    L[j, i] = 0.0;
+                    L[j, i] = ω*d;
                 end
             end
         end
@@ -37,10 +37,10 @@ struct DetNet
     end
 end
 
-function DetNet(n::Int, ρ::Float64, q::Float64)
+function DetNet(n::Int, ρ::Float64, ω::Float64, q::Float64)
     edge = collect(combinations(1:n, 2));
     edge = map(x -> tuple(x...),edge);
-    return DetNet(edge,ρ,q)
+    return DetNet(edge,ρ,ω,q)
 end
 
 # function DetNet(n1, n2, ρ::Float64, q::Float64)
